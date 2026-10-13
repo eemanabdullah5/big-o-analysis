@@ -28,7 +28,7 @@ from linked_list import LinkedList
 from stack import ArrayStack, LinkedListStack
 
 SIZES = [1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 64_000]
-REPEATS = 10  # take the best of 10 runs (least disturbed by the OS)
+REPEATS = 7  # take the best of 7 runs (least disturbed by the OS)
 OUT_DIR = "results"
 
 
