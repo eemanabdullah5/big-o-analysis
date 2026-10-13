@@ -1,14 +1,12 @@
 """
 Benchmark: does the measured time match the Big-O we predicted?
 ===============================================================
-
 HOW IT WORKS
 ------------
 For every operation we:
   1. build a structure with n elements, for n = 1k, 2k, 4k ... 64k
-  2. time the operation (repeated many times, best of several runs, to cut noise)
+  2. time the operation (repeated many times, best of several runs)
   3. look at how the time grows when n doubles
-
 THE TRICK FOR CHECKING BIG-O
 ----------------------------
 If time = c * n^k, then  log(time) = k * log(n) + log(c).
@@ -17,7 +15,6 @@ So on a log-log plot the points form a straight line whose SLOPE is k:
     slope ~ 1  -> time doubles when n doubles   -> O(n)
     slope ~ 2  -> time x4 when n doubles        -> O(n^2)
 We fit that slope with least squares and compare it to our prediction.
-
 Run:  python benchmark.py
 Out:  results/results.md   (table for the README)
       results/*.png        (graphs)
@@ -26,17 +23,18 @@ Out:  results/results.md   (table for the README)
 import math
 import os
 import time
-
 from dynamic_array import DynamicArray
 from linked_list import LinkedList
 from stack import ArrayStack, LinkedListStack
 
 SIZES = [1_000, 2_000, 4_000, 8_000, 16_000, 32_000, 64_000]
-REPEATS = 5                 # take the best of 5 runs (least disturbed by the OS)
+REPEATS = 5  # take the best of 5 runs (least disturbed by the OS)
 OUT_DIR = "results"
 
 
 # ---------------------------------------------------------------- builders
+
+
 def build_array(n):
     a = DynamicArray()
     for i in range(n):
@@ -71,38 +69,151 @@ FAST, SLOW = 2_000, 20
 # NOT amortized: if a resize lands in that window, its O(n) copy is divided by
 # just 2,000 calls and append wrongly looks like O(n). (Try it: set k=FAST.)
 PER_N = "n"
-
 OPERATIONS = [
     # ---- DynamicArray
-    ("DynamicArray", "get(middle)",   "O(1)", build_array, lambda a, n: a.get(n // 2), FAST),
-    ("DynamicArray", "append",        "O(1)", lambda n: DynamicArray(), lambda a, n: a.append(0), PER_N),
-    ("DynamicArray", "pop",           "O(1)", lambda n: build_array(n + FAST), lambda a, n: a.pop(), FAST),
-    ("DynamicArray", "insert(0)",     "O(n)", build_array, lambda a, n: a.insert(0, -1), SLOW),
-    ("DynamicArray", "delete(0)",     "O(n)", build_array, lambda a, n: a.delete(0), SLOW),
-    ("DynamicArray", "search(miss)",  "O(n)", build_array, lambda a, n: a.search(-5), SLOW),
+    (
+        "DynamicArray",
+        "get(middle)",
+        "O(1)",
+        build_array,
+        lambda a, n: a.get(n // 2),
+        FAST,
+    ),
+    (
+        "DynamicArray",
+        "append",
+        "O(1)",
+        lambda n: DynamicArray(),
+        lambda a, n: a.append(0),
+        PER_N,
+    ),
+    (
+        "DynamicArray",
+        "pop",
+        "O(1)",
+        lambda n: build_array(n + FAST),
+        lambda a, n: a.pop(),
+        FAST,
+    ),
+    (
+        "DynamicArray",
+        "insert(0)",
+        "O(n)",
+        build_array,
+        lambda a, n: a.insert(0, -1),
+        SLOW,
+    ),
+    (
+        "DynamicArray",
+        "delete(0)",
+        "O(n)",
+        build_array,
+        lambda a, n: a.delete(0),
+        SLOW,
+    ),
+    (
+        "DynamicArray",
+        "search(miss)",
+        "O(n)",
+        build_array,
+        lambda a, n: a.search(-5),
+        SLOW,
+    ),
     # ---- LinkedList
-    ("LinkedList", "push_front",      "O(1)", build_list, lambda l, n: l.push_front(0), FAST),
-    ("LinkedList", "push_back",       "O(1)", build_list, lambda l, n: l.push_back(0), FAST),
-    ("LinkedList", "pop_front",       "O(1)", lambda n: build_list(n + FAST), lambda l, n: l.pop_front(), FAST),
-    ("LinkedList", "pop_back",        "O(n)", build_list, lambda l, n: l.pop_back(), SLOW),
-    ("LinkedList", "get(middle)",       "O(n)", build_list, lambda l, n: l.get(n // 2), SLOW),
-    ("LinkedList", "search(miss)",    "O(n)", build_list, lambda l, n: l.search(-5), SLOW),
+    (
+        "LinkedList",
+        "push_front",
+        "O(1)",
+        build_list,
+        lambda linked_list, n: linked_list.push_front(0),
+        FAST,
+    ),
+    (
+        "LinkedList",
+        "push_back",
+        "O(1)",
+        build_list,
+        lambda linked_list, n: linked_list.push_back(0),
+        FAST,
+    ),
+    (
+        "LinkedList",
+        "pop_front",
+        "O(1)",
+        lambda n: build_list(n + FAST),
+        lambda linked_list, n: linked_list.pop_front(),
+        FAST,
+    ),
+    (
+        "LinkedList",
+        "pop_back",
+        "O(n)",
+        build_list,
+        lambda linked_list, n: linked_list.pop_back(),
+        SLOW,
+    ),
+    (
+        "LinkedList",
+        "get(middle)",
+        "O(n)",
+        build_list,
+        lambda linked_list, n: linked_list.get(n // 2),
+        SLOW,
+    ),
+    (
+        "LinkedList",
+        "search(miss)",
+        "O(n)",
+        build_list,
+        lambda linked_list, n: linked_list.search(-5),
+        SLOW,
+    ),
     # ---- Stacks
-    ("ArrayStack", "push",            "O(1)", lambda n: ArrayStack(), lambda s, n: s.push(0), PER_N),
-    ("ArrayStack", "pop",             "O(1)", lambda n: build_stack(ArrayStack, n + FAST), lambda s, n: s.pop(), FAST),
-    ("LinkedListStack", "push",       "O(1)", lambda n: build_stack(LinkedListStack, n), lambda s, n: s.push(0), FAST),
-    ("LinkedListStack", "pop",        "O(1)", lambda n: build_stack(LinkedListStack, n + FAST), lambda s, n: s.pop(), FAST),
+    (
+        "ArrayStack",
+        "push",
+        "O(1)",
+        lambda n: ArrayStack(),
+        lambda s, n: s.push(0),
+        PER_N,
+    ),
+    (
+        "ArrayStack",
+        "pop",
+        "O(1)",
+        lambda n: build_stack(ArrayStack, n + FAST),
+        lambda s, n: s.pop(),
+        FAST,
+    ),
+    (
+        "LinkedListStack",
+        "push",
+        "O(1)",
+        lambda n: build_stack(LinkedListStack, n),
+        lambda s, n: s.push(0),
+        FAST,
+    ),
+    (
+        "LinkedListStack",
+        "pop",
+        "O(1)",
+        lambda n: build_stack(LinkedListStack, n + FAST),
+        lambda s, n: s.pop(),
+        FAST,
+    ),
 ]
 
 
 # ---------------------------------------------------------------- measuring
+
+
 def time_per_call(setup, op, n, k):
     """Best-of-REPEATS time for ONE call of op on a structure of size n."""
     if k == PER_N:
         k = n
     best = math.inf
     for _ in range(REPEATS):
-        obj = setup(n)                          # fresh structure, not timed
+        obj = setup(n)  # fresh structure, not timed
         start = time.perf_counter()
         for _ in range(k):
             op(obj, n)
@@ -131,6 +242,8 @@ def classify(slope):
 
 
 # ---------------------------------------------------------------- report
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     results = []
@@ -140,9 +253,11 @@ def main():
         observed = classify(slope)
         match = "✅" if observed == expected else "❌"
         results.append((struct, name, expected, observed, slope, times, match))
-        print(f"{struct:16} {name:14} expected {expected:5} observed {observed:7} "
-              f"slope {slope:5.2f}  {match}")
-
+        print(
+            f"{struct:16} {name:14} expected {expected:5} "
+            f"observed {observed:7} "
+            f"slope {slope:5.2f}  {match}"
+        )
     amortized = amortized_append_demo()
     write_markdown(results, amortized)
     plot(results)
@@ -165,15 +280,30 @@ def amortized_append_demo():
 
 
 def write_markdown(results, amortized):
-    head = "| Structure | Operation | Expected | Observed | Slope | " + \
-           " | ".join(f"n={n//1000}k" for n in SIZES) + " | Match |"
+    head = (
+        "| Structure | Operation | Expected | Observed | Slope | "
+        + " | ".join(f"n={n // 1000}k" for n in SIZES)
+        + " | Match |"
+    )
     sep = "|" + "---|" * (6 + len(SIZES))
-    lines = ["## Benchmark results (time per call, microseconds)", "", head, sep]
+    lines = [
+        "## Benchmark results (time per call, microseconds)",
+        "",
+        head,
+        sep,
+    ]
     for struct, name, exp, obs, slope, times, match in results:
-        cells = " | ".join(f"{t*1e6:.2f}" for t in times)
-        lines.append(f"| {struct} | `{name}` | {exp} | {obs} | {slope:.2f} | {cells} | {match} |")
-    lines += ["", "## Amortized append (DynamicArray)", "",
-              "| n appends | avg ns per append | resizes |", "|---|---|---|"]
+        cells = " | ".join(f"{t * 1e6:.2f}" for t in times)
+        lines.append(
+            f"| {struct} | `{name}` | {exp} | {obs} | {slope:.2f} | {cells} | {match} |"
+        )
+    lines += [
+        "",
+        "## Amortized append (DynamicArray)",
+        "",
+        "| n appends | avg ns per append | resizes |",
+        "|---|---|---|",
+    ]
     for n, ns, r in amortized:
         lines.append(f"| {n:,} | {ns:.0f} | {r} |")
     with open(os.path.join(OUT_DIR, "results.md"), "w", encoding="utf-8") as f:
@@ -183,19 +313,24 @@ def write_markdown(results, amortized):
 def plot(results):
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
         print("matplotlib not installed - skipping graphs (pip install matplotlib)")
         return
-
     for struct in dict.fromkeys(r[0] for r in results):
         rows = [r for r in results if r[0] == struct]
         fig, ax = plt.subplots(figsize=(7, 4.5))
         for _, name, exp, obs, slope, times, _ in rows:
             style = "-" if exp == "O(n)" else "--"
-            ax.plot(SIZES, [t * 1e6 for t in times], style, marker="o",
-                    label=f"{name}  (expected {exp}, slope {slope:.2f})")
+            ax.plot(
+                SIZES,
+                [t * 1e6 for t in times],
+                style,
+                marker="o",
+                label=f"{name}  (expected {exp}, slope {slope:.2f})",
+            )
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlabel("n (number of elements)")
@@ -206,7 +341,6 @@ def plot(results):
         fig.tight_layout()
         fig.savefig(os.path.join(OUT_DIR, f"{struct}.png"), dpi=120)
         plt.close(fig)
-
     # head-to-head: the classic array vs linked list trade-off
     pick = {(r[0], r[1]): r[5] for r in results}
     fig, ax = plt.subplots(figsize=(7, 4.5))
